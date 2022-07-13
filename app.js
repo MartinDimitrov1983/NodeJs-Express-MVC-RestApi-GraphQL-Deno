@@ -2,21 +2,8 @@ const path = require('path');
 
 const express = require('express');
 const bodyParser = require('body-parser');
-//const expressHbs = require('express-handlebars')
 
 const app = express();
-
-// Handlebars setup
-// app.engine('hbs', expressHbs.engine({
-//     layoutsDir: 'views',
-//     defaultLayout: 'layouts/main-layout',
-//     extname: 'hbs'
-// }))
-// app.set('view engine', 'hbs');
-
-// Pug setup
-//app.set('view engine', 'pug');
-// Ejs
 
 app.set('view engine', 'ejs');
 app.set('views', 'views')
