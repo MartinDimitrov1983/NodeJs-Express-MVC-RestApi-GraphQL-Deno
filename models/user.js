@@ -8,7 +8,7 @@ class User {
     this.name = username;
     this.email = email;
     this.cart = cart; //{items : []}
-    this._id = id;
+    this._id = id; 
   }
 
   save() {
@@ -26,7 +26,7 @@ class User {
     const updatedCartItems = [...this.cart.items];
 
     if (cartProductIndex >= 0) {
-      newQuantity += this.cart.items[cartProductIndex].quantity;
+      newQuantity = this.cart.items[cartProductIndex].quantity + 1;
       updatedCartItems[cartProductIndex].quantity = newQuantity;
     } else {
       updatedCartItems.push({
@@ -72,7 +72,7 @@ class User {
 
   deleteItemFromCart(productId) {
     const updatedCartItems = this.cart.items.find(item =>
-      item.productId.toString !== productId.toString());
+      item.productId.toString() !== productId.toString());
 
     const db = getDb();
     return db
