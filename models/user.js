@@ -17,7 +17,7 @@ class User {
   }
 
   addToCart(product) {
-    const cartProductIndex = this.cart.items.find(cp => {
+    const cartProductIndex = this.cart.items.findIndex(cp => {
       console.log("CP", cp)
       return cp.productId.toString() === product._id.toString()
     });
@@ -71,7 +71,7 @@ class User {
   }
 
   deleteItemFromCart(productId) {
-    const updatedCartItems = this.cart.items.find(item =>
+    const updatedCartItems = this.cart.items.filter(item =>
       item.productId.toString() !== productId.toString());
 
     const db = getDb();
