@@ -66,7 +66,7 @@ exports.postEditProduct = (req, res, next) => {
         updatedImageUrl,
         prodId
     );
-    Product
+    product
         .save()
         .then(result => {
             console.log('UPDATED PRODUCT!');
@@ -90,7 +90,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
     const prodId = req.body.productId;
-    Product.findById(prodId)
+    Product.deleteById(prodId)
         .then(result => {
             console.log('DESTROYED PRODUCT');
             res.redirect('/admin/products');
