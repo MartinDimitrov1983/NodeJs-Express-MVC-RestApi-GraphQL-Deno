@@ -46,7 +46,7 @@ exports.getEditProduct = (req, res, next) => {
                 path: '/admin/edit-product',
                 editing: editMode,
                 product: product,
-                isAuthenticated: req.session.isLoggedIn
+                isAuthenticated: req.session.isLoggedIn,
             });
         })
         .catch((err) => console.log(err));
@@ -61,21 +61,24 @@ exports.postEditProduct = (req, res, next) => {
 
     Product.findById(prodId)
         .then((product) => {
+            if (product.userId.toString() !== req.user._id.toString()) {
+                res.redirect('/');
+            }
             product.title = updatedTitle;
             product.price = updatedPrice;
             product.description = updatedDesc;
             product.imageUrl = updatedImageUrl;
-            return product.save();
+            return product.save().then((result) => {
+                console.log('UPDATED PRODUCT!');
+                res.redirect('/admin/products');
+            });
         })
-        .then((result) => {
-            console.log('UPDATED PRODUCT!');
-            res.redirect('/admin/products');
-        })
+
         .catch((err) => console.log(err));
 };
 
 exports.getProducts = (req, res, next) => {
-    Product.find()
+    Product.find({ userId: req.user._id })
         // .select('title price -_id')
         // .populate('userId', 'name')
         .then((products) => {
@@ -83,7 +86,7 @@ exports.getProducts = (req, res, next) => {
                 prods: products,
                 pageTitle: 'Admin Products',
                 path: '/admin/products',
-                isAuthenticated: req.session.isLoggedIn
+                isAuthenticated: req.session.isLoggedIn,
             });
         })
         .catch((err) => console.log(err));
@@ -91,7 +94,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
     const prodId = req.body.productId;
-    Product.findByIdAndRemove(prodId)
+    Product.deleteOne({ _id: prodId, userId: req.user._id })
         .then(() => {
             console.log('DESTROYED PRODUCT');
             res.redirect('/admin/products');
