@@ -15,9 +15,9 @@ router.post(
     [
         body('email')
             .isEmail()
-            .withMessage('Please enter a valid email address')
+            .withMessage('Please enter a valid email address.')
             .normalizeEmail(),
-        body('password', 'Password has to be a valid')
+        body('password', 'Password has to be valid')
             .isLength({ min: 4 })
             .isAlphanumeric()
             .trim(),
@@ -35,7 +35,7 @@ router.post(
                 return User.findOne({ email: value }).then((userDoc) => {
                     if (userDoc) {
                         return Promise.reject(
-                            'E-Mail exist already. please pick a different one. '
+                            'E-Mail exists already, please pick a different one.'
                         );
                     }
                 });
@@ -43,7 +43,7 @@ router.post(
             .normalizeEmail(),
         body(
             'password',
-            'Please enter a password only numbers and text and at least 5 characters.'
+            'Please enter a password with only numbers and text and at least 5 characters.'
         )
             .isLength({ min: 5 })
             .isAlphanumeric()
