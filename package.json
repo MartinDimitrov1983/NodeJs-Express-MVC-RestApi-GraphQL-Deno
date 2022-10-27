@@ -1,10 +1,11 @@
 {
-  "name": "nodejs-express-mvc-restapi-graphql-deno",
+  "name": "nodejs-express-mvc-restpi-graphql-deno",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon app.js"
   },
   "repository": {
     "type": "git",
@@ -12,10 +13,6 @@
   },
   "author": "Martin Dimitrov",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/MartinDimitrov1983/NodeJs-Express-MVC-RestApi-GraphQL-Deno/issues"
-  },
-  "homepage": "https://github.com/MartinDimitrov1983/NodeJs-Express-MVC-RestApi-GraphQL-Deno#readme",
   "devDependencies": {
     "nodemon": "^2.0.19"
   },
