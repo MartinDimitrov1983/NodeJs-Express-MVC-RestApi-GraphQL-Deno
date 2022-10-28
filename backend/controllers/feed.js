@@ -40,12 +40,13 @@ exports.createPost = (req, res, next) => {
         error.statusCode = 422;
         throw error;
     }
-    if ((!req.file)) {
+    if (!req.file) {
         const error = new Error('No image provided.');
         error.statusCode = 422;
         throw error;
     }
-    const imageUrl = req.file.path;
+    const imageUrl = req.file.path.replace(/\\/g, '/');
+   console.log(imageUrl)
     const { title, content } = req.body;
     const post = new Post({
         title: title,
@@ -55,7 +56,7 @@ exports.createPost = (req, res, next) => {
     });
     post.save()
         .then((result) => {
-            res.status.json({
+            res.status(201).json({
                 message: 'Post created successfully.',
                 post: result,
             });
@@ -101,7 +102,7 @@ exports.updatePost = (req, res, next) => {
     const { title, content } = req.body;
     let imageUrl = req.body.image;
     if (req.file) {
-        imageUrl = req.file.path;
+        imageUrl = req.file.path.replace(/\\/g, '/');
     }
     if (!imageUrl) {
         const error = new Error('No file picked.');
@@ -109,7 +110,7 @@ exports.updatePost = (req, res, next) => {
         throw error;
     }
 
-    Post.findById(post)
+    Post.findById(postId)
         .then((post) => {
             if (!post) {
                 const error = new Error('Could not find post.');
