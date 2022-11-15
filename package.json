@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js"
+    "start": "nodemon app.js",
+    "test": "mocha --timeout 5000"
   },
   "repository": {
     "type": "git",
@@ -14,7 +14,10 @@
   "author": "Martin Dimitrov",
   "license": "ISC",
   "devDependencies": {
-    "nodemon": "^2.0.19"
+    "chai": "^4.3.7",
+    "mocha": "^10.1.0",
+    "nodemon": "^2.0.19",
+    "sinon": "^14.0.2"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
