@@ -1,5 +1,10 @@
-import React, { Component, Fragment } from "react";
-import { Route, Switch, Redirect, withRouter } from "react-router-dom";
+import React, { useState, useEffect, Fragment } from "react";
+import {
+  Route,
+  Switch,
+  Redirect,
+  withRouter,
+} from "react-router-dom";
 
 import Layout from "./components/Layout/Layout";
 import Backdrop from "./components/Backdrop/Backdrop";
@@ -7,14 +12,14 @@ import Toolbar from "./components/Toolbar/Toolbar";
 import MainNavigation from "./components/Navigation/MainNavigation/MainNavigation";
 import MobileNavigation from "./components/Navigation/MobileNavigation/MobileNavigation";
 import ErrorHandler from "./components/ErrorHandler/ErrorHandler";
-import FeedPage from "./pages/Feed/Feed";
+import FeedPage from "./pages/Feed/Feed2";
 import SinglePostPage from "./pages/Feed/SinglePost/SinglePost2";
 import LoginPage from "./pages/Auth/Login2";
 import SignupPage from "./pages/Auth/Signup2";
 import "./App.css";
 
-class App extends Component {
-  state = {
+const App = (props) => {
+  const [state, setState] = useState({
     showBackdrop: false,
     showMobileNav: false,
     isAuth: false,
@@ -22,41 +27,41 @@ class App extends Component {
     userId: null,
     authLoading: false,
     error: null,
-  };
+  });
 
-  componentDidMount() {
+  useEffect(() => {
     const token = localStorage.getItem("token");
     const expiryDate = localStorage.getItem("expiryDate");
     if (!token || !expiryDate) {
       return;
     }
     if (new Date(expiryDate) <= new Date()) {
-      this.logoutHandler();
+      logoutHandler();
       return;
     }
     const userId = localStorage.getItem("userId");
     const remainingMilliseconds =
       new Date(expiryDate).getTime() - new Date().getTime();
-    this.setState({ isAuth: true, token: token, userId: userId });
-    this.setAutoLogout(remainingMilliseconds);
-  }
+    setState({ isAuth: true, token: token, userId: userId });
+    setAutoLogout(remainingMilliseconds);
+  }, []);
 
-  mobileNavHandler = (isOpen) => {
-    this.setState({ showMobileNav: isOpen, showBackdrop: isOpen });
+  const mobileNavHandler = (isOpen) => {
+    setState({ showMobileNav: isOpen, showBackdrop: isOpen });
   };
 
-  backdropClickHandler = () => {
-    this.setState({ showBackdrop: false, showMobileNav: false, error: null });
+  const backdropClickHandler = () => {
+    setState({ showBackdrop: false, showMobileNav: false, error: null });
   };
 
-  logoutHandler = () => {
-    this.setState({ isAuth: false, token: null });
+  const logoutHandler = () => {
+    setState({ isAuth: false, token: null });
     localStorage.removeItem("token");
     localStorage.removeItem("expiryDate");
     localStorage.removeItem("userId");
   };
 
-  loginHandler = (event, authData) => {
+  const loginHandler = (event, authData) => {
     event.preventDefault();
     const graphqlQuery = {
       query: `
@@ -72,7 +77,7 @@ class App extends Component {
         password: authData.password,
       },
     };
-    this.setState({ authLoading: true });
+    setState({ authLoading: true });
     fetch("http://localhost:8080/graphql", {
       method: "POST",
       headers: {
@@ -92,7 +97,7 @@ class App extends Component {
         if (resData.errors) {
           throw new Error("User login failed!");
         }
-        this.setState({
+        setState({
           isAuth: true,
           token: resData.data.login.token,
           authLoading: false,
@@ -105,11 +110,11 @@ class App extends Component {
           new Date().getTime() + remainingMilliseconds
         );
         localStorage.setItem("expiryDate", expiryDate.toISOString());
-        this.setAutoLogout(remainingMilliseconds);
+        setAutoLogout(remainingMilliseconds);
       })
       .catch((err) => {
         console.log(err);
-        this.setState({
+        setState({
           isAuth: false,
           authLoading: false,
           error: err,
@@ -117,9 +122,9 @@ class App extends Component {
       });
   };
 
-  signupHandler = (event, authData) => {
+  const signupHandler = (event, authData) => {
     event.preventDefault();
-    this.setState({ authLoading: true });
+    setState({ authLoading: true });
     const graphqlQuery = {
       query: `
         mutation CreateUser($email: String!, $name: String!, $password: String!) {
@@ -154,12 +159,12 @@ class App extends Component {
         if (resData.errors) {
           throw new Error("User creation failed!");
         }
-        this.setState({ isAuth: false, authLoading: false });
-        this.props.history.replace("/");
+        setState({ isAuth: false, authLoading: false });
+        props.history.replace("/");
       })
       .catch((err) => {
         console.log(err);
-        this.setState({
+        setState({
           isAuth: false,
           authLoading: false,
           error: err,
@@ -167,98 +172,94 @@ class App extends Component {
       });
   };
 
-  setAutoLogout = (milliseconds) => {
+  const setAutoLogout = (milliseconds) => {
     setTimeout(() => {
-      this.logoutHandler();
+      logoutHandler();
     }, milliseconds);
   };
 
-  errorHandler = () => {
-    this.setState({ error: null });
+  const errorHandler = () => {
+    setState({ error: null });
   };
 
-  render() {
-    let routes = (
+  let routes = (
+    <Switch>
+      <Route
+        path="/"
+        exact
+        render={(props) => (
+          <LoginPage
+            {...props}
+            onLogin={loginHandler}
+            loading={state.authLoading}
+          />
+        )}
+      />
+      <Route
+        path="/signup"
+        exact
+        render={(props) => (
+          <SignupPage
+            {...props}
+            onSignup={signupHandler}
+            loading={state.authLoading}
+          />
+        )}
+      />
+      <Redirect to="/" />
+    </Switch>
+  );
+  if (state.isAuth) {
+    routes = (
       <Switch>
         <Route
           path="/"
           exact
           render={(props) => (
-            <LoginPage
-              {...props}
-              onLogin={this.loginHandler}
-              loading={this.state.authLoading}
-            />
+            <FeedPage userId={state.userId} token={state.token} />
           )}
         />
         <Route
-          path="/signup"
-          exact
+          path="/:postId"
           render={(props) => (
-            <SignupPage
+            <SinglePostPage
               {...props}
-              onSignup={this.signupHandler}
-              loading={this.state.authLoading}
+              userId={state.userId}
+              token={state.token}
             />
           )}
         />
         <Redirect to="/" />
       </Switch>
     );
-    if (this.state.isAuth) {
-      routes = (
-        <Switch>
-          <Route
-            path="/"
-            exact
-            render={(props) => (
-              <FeedPage userId={this.state.userId} token={this.state.token} />
-            )}
-          />
-          <Route
-            path="/:postId"
-            render={(props) => (
-              <SinglePostPage
-                {...props}
-                userId={this.state.userId}
-                token={this.state.token}
-              />
-            )}
-          />
-          <Redirect to="/" />
-        </Switch>
-      );
-    }
-    return (
-      <Fragment>
-        {this.state.showBackdrop && (
-          <Backdrop onClick={this.backdropClickHandler} />
-        )}
-        <ErrorHandler error={this.state.error} onHandle={this.errorHandler} />
-        <Layout
-          header={
-            <Toolbar>
-              <MainNavigation
-                onOpenMobileNav={this.mobileNavHandler.bind(this, true)}
-                onLogout={this.logoutHandler}
-                isAuth={this.state.isAuth}
-              />
-            </Toolbar>
-          }
-          mobileNav={
-            <MobileNavigation
-              open={this.state.showMobileNav}
-              mobile
-              onChooseItem={this.mobileNavHandler.bind(this, false)}
-              onLogout={this.logoutHandler}
-              isAuth={this.state.isAuth}
-            />
-          }
-        />
-        {routes}
-      </Fragment>
-    );
   }
-}
+  return (
+    <Fragment>
+      {state.showBackdrop && <Backdrop onClick={backdropClickHandler} />}
+      <ErrorHandler error={state.error} onHandle={errorHandler} />
+      <Layout
+        header={
+          <Toolbar>
+            <MainNavigation
+              onOpenMobileNav={(e) => mobileNavHandler(true)}
+              onLogout={logoutHandler}
+              isAuth={state.isAuth}
+            />
+          </Toolbar>
+        }
+        mobileNav={
+          <MobileNavigation
+            open={state.showMobileNav}
+            mobile
+            onChooseItem={(e) => mobileNavHandler(false)}
+            onLogout={logoutHandler}
+            isAuth={state.isAuth}
+          />
+        }
+      />
+      {routes}
+    </Fragment>
+  );
+};
 
 export default withRouter(App);

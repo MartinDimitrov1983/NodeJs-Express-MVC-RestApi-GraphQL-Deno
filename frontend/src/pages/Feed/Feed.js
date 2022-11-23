@@ -2,7 +2,7 @@ import React, { Component, Fragment } from "react";
 
 import Post from "../../components/Feed/Post/Post";
 import Button from "../../components/Button/Button";
-import FeedEdit from "../../components/Feed/FeedEdit/FeedEdit";
+import FeedEdit from "../../components/Feed/FeedEdit/FeedEdit2";
 import Input from "../../components/Form/Input/Input";
 import Paginator from "../../components/Paginator/Paginator";
 import Loader from "../../components/Loader/Loader";
@@ -267,6 +267,7 @@ class Feed extends Component {
         if (this.state.editPost) {
           resDataField = "updatePost";
         }
+        console.log(resData);
         const post = {
           _id: resData.data[resDataField]._id,
           title: resData.data[resDataField].title,
@@ -359,7 +360,10 @@ class Feed extends Component {
     this.setState({ error: error });
   };
 
+  
+
   render() {
+    console.log("------------")
     return (
       <Fragment>
         <ErrorHandler error={this.state.error} onHandle={this.errorHandler} />
