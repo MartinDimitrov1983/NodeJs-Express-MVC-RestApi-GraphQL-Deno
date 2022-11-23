@@ -9,12 +9,12 @@ const { clearImage } = require('../util/file');
 module.exports = {
     createUser: async function ({ userInput }, req) {
         const errors = [];
-        if (validator.isEmail(userInput.email)) {
+        if (!validator.isEmail(userInput.email)) {
             errors.push({ message: 'Email is invalid' });
         }
         if (
             validator.isEmpty(userInput.password) ||
-            validator.isLength(userInput.password, { min: 5 })
+            !validator.isLength(userInput.password, { min: 5 })
         ) {
             errors.push({ message: 'Password too short' });
         }
@@ -27,10 +27,13 @@ module.exports = {
         }
 
         const existingUser = await User.findOne({ email: userInput.email });
+        
         if (existingUser) {
             const error = new Error('User exists already!');
             throw error;
         }
+
+      
 
         const hashedPassword = await bcrypt.hash(userInput.password, 12);
         const user = new User({
@@ -212,7 +215,7 @@ module.exports = {
         }
         post.title = postInput.title;
         post.content = postInput.content;
-        if (post.imageUrl !== 'undefined') {
+        if (postInput.imageUrl !== 'undefined') {
             post.imageUrl = postInput.imageUrl.replace(/\\/g, '/');
         }
 
