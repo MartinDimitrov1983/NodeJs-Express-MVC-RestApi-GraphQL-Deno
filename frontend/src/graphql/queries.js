@@ -21,4 +21,17 @@ const USER_STATUS = `query UserStatus {
   }
 }
 `;
-export { FETCH_POSTS, USER_STATUS };
+
+const FETCH_SINGLE_POST = `query FetchSinglePost($postId: ID!) {
+  post(id: $postId) {
+    title
+    content
+    imageUrl
+    creator {
+      name
+    }
+    createdAt
+  }
+}
+`;
+export { FETCH_POSTS, USER_STATUS, FETCH_SINGLE_POST };

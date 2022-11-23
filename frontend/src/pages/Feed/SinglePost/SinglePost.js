@@ -1,81 +1,61 @@
-import React, { Component } from "react";
+import React, { useState, useEffect } from "react";
 
 import Image from "../../../components/Image/Image";
+import { FETCH_SINGLE_POST } from "../../../graphql/queries";
+import { fetchData } from "../../../util/fetchData";
 import "./SinglePost.css";
 
-class SinglePost extends Component {
-  state = {
+const SinglePost = (props) => {
+  const [post, setPost] = useState({
     title: "",
     author: "",
     date: "",
     image: "",
     content: "",
-  };
+  });
 
-  componentDidMount() {
-    const postId = this.props.match.params.postId;
+  useEffect(() => {
+    const postId = props.match.params.postId;
     const graphqlQuery = {
-      query: `
-        query FetchSinglePost($postId: ID!) {
-          post(id: $postId) {
-            title
-            content
-            imageUrl
-            creator {
-              name
-            }
-            createdAt
-          }
-        }
-      `,
+      query: FETCH_SINGLE_POST,
       variables: {
         postId: postId,
       },
     };
-    fetch("http://localhost:8080/graphql", {
-      method: "POST",
-      body: JSON.stringify(graphqlQuery),
-      headers: {
-        Authorization: "Bearer " + this.props.token,
-        "Content-Type": "application/json",
-      },
-    })
-      .then((res) => {
-        return res.json();
-      })
+
+    fetchData(props.token, graphqlQuery)
       .then((resData) => {
-        console.log(resData)
+        console.log(resData);
         if (resData.errors) {
           throw new Error("Fetching post failed!");
         }
-        console.log(resData.data.post.imageUrl)
-        this.setState({
+        setPost({
           title: resData.data.post.title,
           author: resData.data.post.creator.name,
           image: "http://localhost:8080/" + resData.data.post.imageUrl,
-          date: new Date(resData.data.post.createdAt).toLocaleDateString("en-US"),
+          date: new Date(resData.data.post.createdAt).toLocaleDateString(
+            "en-US"
+          ),
           content: resData.data.post.content,
         });
       })
       .catch((err) => {
         console.log(err);
       });
-  }
+  }, [props.match.params.postId, props.token]);
 
-  render() {
-    return (
-      <section className="single-post">
-        <h1>{this.state.title}</h1>
-        <h2>
-          Created by {this.state.author} on {this.state.date}
-        </h2>
-        <div className="single-post__image">
-          <Image contain imageUrl={this.state.image} />
-        </div>
-        <p>{this.state.content}</p>
-      </section>
-    );
-  }
-}
+  return (
+    <section className="single-post">
+      <h1>{post.title}</h1>
+      <h2>
+        Created by {post.author} on {post.date}
+      </h2>
+      <div className="single-post__image">
+        <Image contain imageUrl={post.image} />
+      </div>
+      <p>{post.content}</p>
+    </section>
+  );
+};
 
 export default SinglePost;

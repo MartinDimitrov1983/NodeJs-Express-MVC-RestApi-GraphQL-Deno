@@ -1,5 +1,5 @@
-import React, { Component, Fragment } from "react";
-import { Route, Switch, Redirect, withRouter } from "react-router-dom";
+import React, { useState, useEffect, Fragment } from "react";
+import { withRouter } from "react-router-dom";
 
 import Layout from "./components/Layout/Layout";
 import Backdrop from "./components/Backdrop/Backdrop";
@@ -7,97 +7,83 @@ import Toolbar from "./components/Toolbar/Toolbar";
 import MainNavigation from "./components/Navigation/MainNavigation/MainNavigation";
 import MobileNavigation from "./components/Navigation/MobileNavigation/MobileNavigation";
 import ErrorHandler from "./components/ErrorHandler/ErrorHandler";
-import FeedPage from "./pages/Feed/Feed";
-import SinglePostPage from "./pages/Feed/SinglePost/SinglePost2";
-import LoginPage from "./pages/Auth/Login2";
-import SignupPage from "./pages/Auth/Signup2";
+import Routes from "./Routes";
+import { fetchData } from "./util/fetchData";
+import { CREATE_USER, USER_LOGIN } from "./graphql/mutations";
+
 import "./App.css";
 
-class App extends Component {
-  state = {
-    showBackdrop: false,
-    showMobileNav: false,
-    isAuth: false,
-    token: null,
-    userId: null,
-    authLoading: false,
-    error: null,
-  };
+const App = (props) => {
+  const [showBackdrop, setShowBackdrop] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
+  const [isAuth, setIsAuth] = useState(false);
+  const [token, setToken] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  componentDidMount() {
-    const token = localStorage.getItem("token");
+  useEffect(() => {
+    const localStorageToken = localStorage.getItem("token");
     const expiryDate = localStorage.getItem("expiryDate");
-    if (!token || !expiryDate) {
+    if (!localStorageToken || !expiryDate) {
       return;
     }
     if (new Date(expiryDate) <= new Date()) {
-      this.logoutHandler();
+      logoutHandler();
       return;
     }
-    const userId = localStorage.getItem("userId");
+    const LocalStorageUserId = localStorage.getItem("userId");
     const remainingMilliseconds =
       new Date(expiryDate).getTime() - new Date().getTime();
-    this.setState({ isAuth: true, token: token, userId: userId });
-    this.setAutoLogout(remainingMilliseconds);
-  }
+    setIsAuth(true);
+    setToken(localStorageToken);
+    setUserId(LocalStorageUserId);
+    setAutoLogout(remainingMilliseconds);
+  }, [token]);
 
-  mobileNavHandler = (isOpen) => {
-    this.setState({ showMobileNav: isOpen, showBackdrop: isOpen });
+  const mobileNavHandler = (isOpen) => {
+    setShowBackdrop(isOpen);
+    setShowMobileNav(isOpen);
   };
 
-  backdropClickHandler = () => {
-    this.setState({ showBackdrop: false, showMobileNav: false, error: null });
+  const backdropClickHandler = () => {
+    setShowBackdrop(false);
+    setShowMobileNav(false);
+    setError(null);
   };
 
-  logoutHandler = () => {
-    this.setState({ isAuth: false, token: null });
+  const logoutHandler = () => {
+    setIsAuth(false);
+    setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("expiryDate");
     localStorage.removeItem("userId");
   };
 
-  loginHandler = (event, authData) => {
+  const loginHandler = (event, authData) => {
     event.preventDefault();
     const graphqlQuery = {
-      query: `
-        query UserLogin($email: String!, $password: String!) {
-          login(email: $email, password: $password) {
-            token
-            userId
-          }
-        }
-      `,
+      query: USER_LOGIN,
       variables: {
         email: authData.email,
         password: authData.password,
       },
     };
-    this.setState({ authLoading: true });
-    fetch("http://localhost:8080/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(graphqlQuery),
-    })
-      .then((res) => {
-        return res.json();
-      })
+    setAuthLoading(true);
+
+    fetchData(props.token, graphqlQuery)
       .then((resData) => {
-        if (resData.errors && resData.errors[0].status === 422) {
-          throw new Error(
-            "Validation failed. Make sure the email address isn't used yet!"
-          );
+        if (resData.errors && resData.errors[0].status === 401) {
+          throw new Error("Validation failed. Check your password or email!");
         }
         if (resData.errors) {
           throw new Error("User login failed!");
         }
-        this.setState({
-          isAuth: true,
-          token: resData.data.login.token,
-          authLoading: false,
-          userId: resData.data.login.userId,
-        });
+
+        setToken(resData.data.login.token);
+        setUserId(resData.data.login.userId);
+        setAuthLoading(false);
+        setIsAuth(true);
         localStorage.setItem("token", resData.data.login.token);
         localStorage.setItem("userId", resData.data.login.userId);
         const remainingMilliseconds = 60 * 60 * 1000;
@@ -105,46 +91,30 @@ class App extends Component {
           new Date().getTime() + remainingMilliseconds
         );
         localStorage.setItem("expiryDate", expiryDate.toISOString());
-        this.setAutoLogout(remainingMilliseconds);
+        setAutoLogout(remainingMilliseconds);
       })
       .catch((err) => {
         console.log(err);
-        this.setState({
-          isAuth: false,
-          authLoading: false,
-          error: err,
-        });
+        setIsAuth(false);
+        setAuthLoading(false);
+        setError(err);
       });
   };
 
-  signupHandler = (event, authData) => {
+  const signupHandler = (event, authData) => {
     event.preventDefault();
-    this.setState({ authLoading: true });
+    setAuthLoading(true);
+
     const graphqlQuery = {
-      query: `
-        mutation CreateUser($email: String!, $name: String!, $password: String!) {
-          createUser(userInput: {email: $email, name: $name, password: $password}) {
-            _id
-            email
-          }
-        }
-      `,
+      query: CREATE_USER,
       variables: {
         email: authData.signupForm.email.value,
         name: authData.signupForm.name.value,
         password: authData.signupForm.password.value,
       },
     };
-    fetch("http://localhost:8080/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(graphqlQuery),
-    })
-      .then((res) => {
-        return res.json();
-      })
+
+    fetchData(props.token, graphqlQuery)
       .then((resData) => {
         if (resData.errors && resData.errors[0].status === 422) {
           throw new Error(
@@ -154,111 +124,63 @@ class App extends Component {
         if (resData.errors) {
           throw new Error("User creation failed!");
         }
-        this.setState({ isAuth: false, authLoading: false });
-        this.props.history.replace("/");
+        setIsAuth(false);
+        setAuthLoading(false);
+        props.history.replace("/");
       })
       .catch((err) => {
         console.log(err);
-        this.setState({
-          isAuth: false,
-          authLoading: false,
-          error: err,
-        });
+        setIsAuth(false);
+        setAuthLoading(false);
+        setError(err);
       });
   };
 
-  setAutoLogout = (milliseconds) => {
+  const setAutoLogout = (milliseconds) => {
     setTimeout(() => {
-      this.logoutHandler();
+      logoutHandler();
     }, milliseconds);
   };
 
-  errorHandler = () => {
-    this.setState({ error: null });
+  const errorHandler = () => {
+    setError(null);
   };
 
-  render() {
-    let routes = (
-      <Switch>
-        <Route
-          path="/"
-          exact
-          render={(props) => (
-            <LoginPage
-              {...props}
-              onLogin={this.loginHandler}
-              loading={this.state.authLoading}
+  console.log("APP TOKEN", token);
+  return (
+    <Fragment>
+      {showBackdrop && <Backdrop onClick={backdropClickHandler} />}
+      <ErrorHandler error={error} onHandle={errorHandler} />
+      <Layout
+        header={
+          <Toolbar>
+            <MainNavigation
+              onOpenMobileNav={(e) => mobileNavHandler(true)}
+              onLogout={logoutHandler}
+              isAuth={isAuth}
             />
-          )}
-        />
-        <Route
-          path="/signup"
-          exact
-          render={(props) => (
-            <SignupPage
-              {...props}
-              onSignup={this.signupHandler}
-              loading={this.state.authLoading}
-            />
-          )}
-        />
-        <Redirect to="/" />
-      </Switch>
-    );
-    if (this.state.isAuth) {
-      routes = (
-        <Switch>
-          <Route
-            path="/"
-            exact
-            render={(props) => (
-              <FeedPage userId={this.state.userId} token={this.state.token} />
-            )}
+          </Toolbar>
+        }
+        mobileNav={
+          <MobileNavigation
+            open={showMobileNav}
+            mobile
+            onChooseItem={(e) => mobileNavHandler(false)}
+            onLogout={logoutHandler}
+            isAuth={isAuth}
           />
-          <Route
-            path="/:postId"
-            render={(props) => (
-              <SinglePostPage
-                {...props}
-                userId={this.state.userId}
-                token={this.state.token}
-              />
-            )}
-          />
-          <Redirect to="/" />
-        </Switch>
-      );
-    }
-    return (
-      <Fragment>
-        {this.state.showBackdrop && (
-          <Backdrop onClick={this.backdropClickHandler} />
-        )}
-        <ErrorHandler error={this.state.error} onHandle={this.errorHandler} />
-        <Layout
-          header={
-            <Toolbar>
-              <MainNavigation
-                onOpenMobileNav={this.mobileNavHandler.bind(this, true)}
-                onLogout={this.logoutHandler}
-                isAuth={this.state.isAuth}
-              />
-            </Toolbar>
-          }
-          mobileNav={
-            <MobileNavigation
-              open={this.state.showMobileNav}
-              mobile
-              onChooseItem={this.mobileNavHandler.bind(this, false)}
-              onLogout={this.logoutHandler}
-              isAuth={this.state.isAuth}
-            />
-          }
-        />
-        {routes}
-      </Fragment>
-    );
-  }
-}
+        }
+      />
+      <Routes
+        loginHandler={loginHandler}
+        authLoading={authLoading}
+        userId={userId}
+        token={token}
+        isAuth={isAuth}
+        signupHandler={signupHandler}
+      />
+    </Fragment>
+  );
+};
 
 export default withRouter(App);
