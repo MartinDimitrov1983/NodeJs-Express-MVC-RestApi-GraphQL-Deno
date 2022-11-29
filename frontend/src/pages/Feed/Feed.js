@@ -268,7 +268,6 @@ const Feed = (props) => {
         if (data.errors) {
           throw new Error("Deleting the post failed!");
         }
-        console.log('test')
         loadPosts();
       },
       onError: (error) => {
