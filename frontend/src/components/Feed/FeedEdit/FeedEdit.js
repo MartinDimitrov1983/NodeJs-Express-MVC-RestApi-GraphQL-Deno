@@ -62,7 +62,6 @@ const FeedEdit = ({ editing, selectedPost, ...props }) => {
   }, [editing, selectedPost]);
 
   const postInputChangeHandler = (input, value, files) => {
-    console.log(input, value, files)
     if (files) {
       generateBase64FromImage(files[0])
       .then(b64 => {

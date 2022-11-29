@@ -1,4 +1,5 @@
-import React, { Fragment, useState, useEffect } from "react";
+import React, { Fragment, useState} from "react";
+import { useQuery, useMutation, useLazyQuery, gql } from "@apollo/client";
 
 import Post from "../../components/Feed/Post/Post";
 import Button from "../../components/Button/Button";
@@ -7,7 +8,6 @@ import Input from "../../components/Form/Input/Input";
 import Paginator from "../../components/Paginator/Paginator";
 import Loader from "../../components/Loader/Loader";
 import ErrorHandler from "../../components/ErrorHandler/ErrorHandler";
-import { fetchData } from "../../util/fetchData";
 import {
   CREATE_NEW_POST,
   UPDATE_USER_STATUS,
@@ -30,21 +30,49 @@ const Feed = (props) => {
   const [postPage, setPostPage] = useState(1);
   const [err, setErr] = useState(null);
 
-  useEffect(() => {
-    const graphqlQuery = {
-      query: USER_STATUS,
-    };
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors) {
-          throw new Error("Fetching status failed!");
-        }
-        setStatus(resData.data.user.status);
-      })
-      .catch(catchError);
+  const GET_USER_STATUS = gql`
+    ${USER_STATUS}
+  `;
 
-    loadPosts();
-  }, []);
+  const FETCH_ALL_POSTS = gql`
+    ${FETCH_POSTS}
+  `;
+  const USER_STATUS_MUTATION = gql`
+    ${UPDATE_USER_STATUS}
+  `;
+
+  const DELETE_POST_MUTATION = gql`
+    ${DELETE_EXISTING_POST}
+  `;
+
+  const UPDATE_POST = gql`
+    ${UPDATE_EXISTING_POST}
+  `;
+
+  const CREATE_POST = gql`
+    ${CREATE_NEW_POST}
+  `;
+  const userStatus = useQuery(GET_USER_STATUS, {
+    onCompleted: (data) => {
+      setStatus(data.user.status);
+      loadPosts();
+    },
+    onError: (error) => {
+      if (error?.graphQLErrors) {
+        catchError(new Error("Fetching status failed!"));
+      }
+      catchError(error);
+    },
+  });
+
+  const [fetchPosts] = useLazyQuery(FETCH_ALL_POSTS);
+
+  const [updateUserStatus] = useMutation(USER_STATUS_MUTATION);
+
+  const [deletePost] = useMutation(DELETE_POST_MUTATION);
+
+  const [createPost] = useMutation(CREATE_POST);
+  const [updatedPost] = useMutation(UPDATE_POST);
 
   const loadPosts = (direction) => {
     if (direction) {
@@ -62,53 +90,46 @@ const Feed = (props) => {
       page--;
       setPostPage(page);
     }
-    const graphqlQuery = {
-      query: FETCH_POSTS,
-      variables: {
-        page: page,
-      },
-    };
-    console.log("TOKEN", props.token);
 
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors) {
-          throw new Error("Failed to fetch posts.");
-        }
+    fetchPosts({
+      variables: { page: page },
+      fetchPolicy: "no-cache",
+      onCompleted: (data) => {
         setState((prevState) => {
           return {
             ...prevState,
-            posts: resData.data.posts.posts.map((post) => {
+            posts: data.posts.posts.map((post) => {
               return {
                 ...post,
                 imagePath: post.imageUrl,
               };
             }),
-            totalPosts: resData.data.posts.totalPosts,
+            totalPosts: data.posts.totalPosts,
           };
         });
         setPostLoading(false);
-      })
-      .catch(catchError);
+      },
+      onError: (error) => {
+        if (error?.graphQLErrors) {
+          catchError(new Error("Failed to fetch posts."));
+        }
+        catchError(error);
+      },
+    });
   };
 
   const statusUpdateHandler = (event) => {
     event.preventDefault();
-    const graphqlQuery = {
-      query: UPDATE_USER_STATUS,
-      variables: {
-        userStatus: status,
-      },
-    };
 
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors) {
-          throw new Error("Can't update status!");
+    updateUserStatus({
+      variables: { userStatus: status },
+      onError: (error) => {
+        if (error?.graphQLErrors) {
+          catchError(new Error("Can't update status!"));
         }
-        console.log(resData);
-      })
-      .catch(catchError);
+        catchError(error);
+      },
+    });
   };
 
   const newPostHandler = () => {
@@ -155,28 +176,26 @@ const Feed = (props) => {
       })
       .then((filesResData) => {
         const imageUrl = filesResData.filePath || "undefined";
-        let graphqlQuery = {
-          query: CREATE_NEW_POST,
-          variables: {
-            title: postData.title,
-            content: postData.content,
-            imageUrl: imageUrl,
-          },
-        };
 
-        if (state.editPost) {
-          graphqlQuery = {
-            query: UPDATE_EXISTING_POST,
-            variables: {
-              postId: state.editPost._id,
-              title: postData.title,
-              content: postData.content,
-              imageUrl: imageUrl,
-            },
-          };
-        }
+        const data = state.editPost
+          ? updatedPost({
+              variables: {
+                postId: state.editPost._id,
+                title: postData.title,
+                content: postData.content,
+                imageUrl: imageUrl,
+              }, 
+            }, 
+            )
+          : createPost({
+              variables: {
+                title: postData.title,
+                content: postData.content,
+                imageUrl: imageUrl,
+              },
+            });
 
-        return fetchData(props.token, graphqlQuery);
+        return data;
       })
       .then((resData) => {
         if (resData.errors && resData.errors[0].status === 422) {
@@ -191,7 +210,6 @@ const Feed = (props) => {
         if (state.editPost) {
           resDataField = "updatePost";
         }
-        console.log(resData);
         const post = {
           _id: resData.data[resDataField]._id,
           title: resData.data[resDataField].title,
@@ -215,7 +233,6 @@ const Feed = (props) => {
             }
             updatedPosts.unshift(post);
           }
-          console.log(state.totalPosts);
           return {
             posts: updatedPosts,
             editPost: null,
@@ -245,25 +262,20 @@ const Feed = (props) => {
 
   const deletePostHandler = (postId) => {
     setPostLoading(true);
-    const graphqlQuery = {
-      query: DELETE_EXISTING_POST,
-      variables: {
-        postId: postId,
-      },
-    };
-
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors) {
+    deletePost({
+      variables: { postId: postId },
+      onCompleted: (data) => {
+        if (data.errors) {
           throw new Error("Deleting the post failed!");
         }
-        console.log(resData);
         loadPosts();
-      })
-      .catch((err) => {
-        setErr(err);
+      },
+      onError: (error) => {
+        console.log(error);
+        setErr(error);
         setPostLoading(false);
-      });
+      },
+    });
   };
 
   const errorHandler = () => {

@@ -6,13 +6,7 @@ const CREATE_USER = `mutation CreateUser($email: String!, $name: String!, $passw
         }
       `;
 
-const USER_LOGIN = `query UserLogin($email: String!, $password: String!) {
-        login(email: $email, password: $password) {
-          token
-          userId
-        }
-      }
-      `;
+
 
 const UPDATE_USER_STATUS = `
 mutation UpdateUserStatus($userStatus: String!) {
@@ -55,10 +49,8 @@ const DELETE_EXISTING_POST = `mutation DeleteExistingPost($postId: ID!){
 }
 `;
 
-
 export {
   CREATE_USER,
-  USER_LOGIN,
   UPDATE_USER_STATUS,
   CREATE_NEW_POST,
   UPDATE_EXISTING_POST,

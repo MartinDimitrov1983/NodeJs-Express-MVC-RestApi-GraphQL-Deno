@@ -15,6 +15,14 @@ const FETCH_POSTS = `query FetchPosts($page: Int) {
   }
 `;
 
+const USER_LOGIN = `query UserLogin($email: String!, $password: String!) {
+    login(email: $email, password: $password) {
+      token
+      userId
+    }
+  }
+  `;
+
 const USER_STATUS = `query UserStatus {
   user {
     status
@@ -34,4 +42,4 @@ const FETCH_SINGLE_POST = `query FetchSinglePost($postId: ID!) {
   }
 }
 `;
-export { FETCH_POSTS, USER_STATUS, FETCH_SINGLE_POST };
+export { FETCH_POSTS, USER_STATUS, FETCH_SINGLE_POST, USER_LOGIN };

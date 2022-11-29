@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Fragment } from "react";
 import { withRouter } from "react-router-dom";
+import { useMutation, useLazyQuery, gql } from "@apollo/client";
 
 import Layout from "./components/Layout/Layout";
 import Backdrop from "./components/Backdrop/Backdrop";
@@ -8,8 +9,8 @@ import MainNavigation from "./components/Navigation/MainNavigation/MainNavigatio
 import MobileNavigation from "./components/Navigation/MobileNavigation/MobileNavigation";
 import ErrorHandler from "./components/ErrorHandler/ErrorHandler";
 import Routes from "./Routes";
-import { fetchData } from "./util/fetchData";
-import { CREATE_USER, USER_LOGIN } from "./graphql/mutations";
+import { CREATE_USER } from "./graphql/mutations";
+import { USER_LOGIN } from "./graphql/queries";
 
 import "./App.css";
 
@@ -19,8 +20,22 @@ const App = (props) => {
   const [isAuth, setIsAuth] = useState(false);
   const [token, setToken] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [authLoading, setAuthLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const LOGIN = gql`
+    ${USER_LOGIN}
+  `;
+  const SIGNUP = gql`
+    ${CREATE_USER}
+  `;
+  const [
+    userLogin,
+    { data: loginData, loading: loginLoading, error: loginError },
+  ] = useLazyQuery(LOGIN);
+  const [
+    userSignup,
+    { data: signupData, loading: signupLoading, error: signupError },
+  ] = useMutation(SIGNUP);
 
   useEffect(() => {
     const localStorageToken = localStorage.getItem("token");
@@ -35,11 +50,55 @@ const App = (props) => {
     const LocalStorageUserId = localStorage.getItem("userId");
     const remainingMilliseconds =
       new Date(expiryDate).getTime() - new Date().getTime();
-    setIsAuth(true);
+    setIsAuth(!!localStorageToken);
     setToken(localStorageToken);
     setUserId(LocalStorageUserId);
     setAutoLogout(remainingMilliseconds);
   }, [token]);
+
+  useEffect(() => {
+    try {
+      if (
+        loginError?.graphQLErrors &&
+        loginError?.graphQLErrors[0].status === 401
+      ) {
+        throw new Error("Validation failed. Check your password or email!");
+      }
+      if (loginError?.graphQLErrors) {
+        throw new Error("User login failed!");
+      }
+      if (loginError) {
+        throw new Error(loginError);
+      }
+    } catch (err) {
+      console.log(err);
+      setIsAuth(false);
+      setError(loginError);
+    }
+  }, [loginError]);
+
+  useEffect(() => {
+    try {
+      if (
+        signupError?.graphQLErrors &&
+        signupError?.graphQLErrors[0]?.status === 422
+      ) {
+        throw new Error(
+          "Validation failed. Make sure the email address isn't used yet!"
+        );
+      }
+      if (signupError?.graphQLErrors) {
+        throw new Error("User creation failed!");
+      }
+      if (signupError) {
+        throw new Error(signupError);
+      }
+    } catch (err) {
+      console.log(err);
+      setIsAuth(false);
+      setError(err);
+    }
+  }, [signupError]);
 
   const mobileNavHandler = (isOpen) => {
     setShowBackdrop(isOpen);
@@ -62,78 +121,39 @@ const App = (props) => {
 
   const loginHandler = (event, authData) => {
     event.preventDefault();
-    const graphqlQuery = {
-      query: USER_LOGIN,
-      variables: {
-        email: authData.email,
-        password: authData.password,
-      },
-    };
-    setAuthLoading(true);
 
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors && resData.errors[0].status === 401) {
-          throw new Error("Validation failed. Check your password or email!");
-        }
-        if (resData.errors) {
-          throw new Error("User login failed!");
-        }
-
-        setToken(resData.data.login.token);
-        setUserId(resData.data.login.userId);
-        setAuthLoading(false);
+    userLogin({
+      variables: { email: authData.email, password: authData.password },
+      onCompleted: (data) => {
+        setToken(data.login.token);
+        setUserId(data.login.userId);
         setIsAuth(true);
-        localStorage.setItem("token", resData.data.login.token);
-        localStorage.setItem("userId", resData.data.login.userId);
+        localStorage.setItem("token", data.login.token);
+        localStorage.setItem("userId", data.login.userId);
         const remainingMilliseconds = 60 * 60 * 1000;
         const expiryDate = new Date(
           new Date().getTime() + remainingMilliseconds
         );
         localStorage.setItem("expiryDate", expiryDate.toISOString());
         setAutoLogout(remainingMilliseconds);
-      })
-      .catch((err) => {
-        console.log(err);
-        setIsAuth(false);
-        setAuthLoading(false);
-        setError(err);
-      });
+      },
+    });
   };
 
   const signupHandler = (event, authData) => {
     event.preventDefault();
-    setAuthLoading(true);
 
-    const graphqlQuery = {
-      query: CREATE_USER,
+    userSignup({
       variables: {
         email: authData.signupForm.email.value,
         name: authData.signupForm.name.value,
         password: authData.signupForm.password.value,
       },
-    };
-
-    fetchData(props.token, graphqlQuery)
-      .then((resData) => {
-        if (resData.errors && resData.errors[0].status === 422) {
-          throw new Error(
-            "Validation failed. Make sure the email address isn't used yet!"
-          );
-        }
-        if (resData.errors) {
-          throw new Error("User creation failed!");
-        }
+      onCompleted: (data) => {
         setIsAuth(false);
-        setAuthLoading(false);
         props.history.replace("/");
-      })
-      .catch((err) => {
-        console.log(err);
-        setIsAuth(false);
-        setAuthLoading(false);
-        setError(err);
-      });
+      },
+    });
   };
 
   const setAutoLogout = (milliseconds) => {
@@ -146,7 +166,6 @@ const App = (props) => {
     setError(null);
   };
 
-  console.log("APP TOKEN", token);
   return (
     <Fragment>
       {showBackdrop && <Backdrop onClick={backdropClickHandler} />}
@@ -173,7 +192,7 @@ const App = (props) => {
       />
       <Routes
         loginHandler={loginHandler}
-        authLoading={authLoading}
+        authLoading={loginLoading || signupLoading}
         userId={userId}
         token={token}
         isAuth={isAuth}
